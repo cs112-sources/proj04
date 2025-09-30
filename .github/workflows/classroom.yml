@@ -1,0 +1,281 @@
+name: Autograding Tests
+'on':
+- push
+- repository_dispatch
+- workflow_dispatch
+permissions:
+  checks: write
+  actions: read
+  contents: read
+jobs:
+  run-autograding-tests:
+    runs-on: ubuntu-latest
+    container:
+      image: calvincsinfrastructure/devcontainer-cs112-autograde:latest
+    if: github.actor != 'github-classroom[bot]'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: compile via make
+      id: compile-make
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: compile
+        setup-command: make
+        command: test -f tester
+        timeout: 4
+        max-score: 0
+    - name: compile proj4 via make
+      id: compile-make-proj4
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: compile
+        setup-command: make proj4
+        command: test -f proj4
+        timeout: 4
+        max-score: 0
+    - name: constructors
+      id: constructors
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: constructors
+        command: "./tester constructors"
+        timeout: 4
+        max-score: 1
+    - name: destructor
+      id: destructor
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: destructor
+        command: "./tester destructor"
+        timeout: 10
+        max-score: 1
+    - name: getSize
+      id: getsize
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: getSize
+        command: "./tester getSize"
+        timeout: 10
+        max-score: 1
+    - name: setItem
+      id: setitem
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: setItem
+        command: "./tester setItem"
+        timeout: 10
+        max-score: 1
+    - name: getItem
+      id: getitem
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: getItem
+        command: "./tester getItem"
+        timeout: 10
+        max-score: 1
+    - name: setSize
+      id: setsize
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: setSize
+        setup-command: 
+        command: "./tester setSize"
+        timeout: 10
+        max-score: 1
+    - name: equality
+      id: equality
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: equality
+        setup-command: 
+        command: "./tester equality"
+        timeout: 10
+        max-score: 1
+    - name: writeToStream
+      id: writetostream
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: writeToStream
+        setup-command: 
+        command: "./tester writeToStream"
+        timeout: 10
+        max-score: 1
+    - name: readFrom
+      id: readfrom
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: readFrom
+        setup-command: 
+        command: "./tester readFromStream"
+        timeout: 10
+        max-score: 0
+    - name: subscript
+      id: subscript
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: subscript
+        setup-command: 
+        command: "./tester subscript"
+        timeout: 10
+        max-score: 3
+    - name: addition
+      id: addition
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: addition
+        setup-command: 
+        command: "./tester addition"
+        timeout: 10
+        max-score: 3
+    - name: subtraction
+      id: subtraction
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: subtraction
+        setup-command: 
+        command: "./tester subtraction"
+        timeout: 10
+        max-score: 3
+    - name: dim0
+      id: dim0
+      uses: classroom-resources/autograding-io-grader@v1
+      with:
+        test-name: dim0
+        setup-command: 
+        command: "./proj4"
+        input: |-
+          0
+          y
+          n
+        expected-output: ^\D*$
+        comparison-method: regex
+        timeout: 10
+        max-score: 3
+    - name: dim1
+      id: dim1
+      uses: classroom-resources/autograding-io-grader@v1
+      with:
+        test-name: dim1
+        setup-command: 
+        command: "./proj4"
+        input: |-
+          1
+          2024
+          y
+          -10
+          y
+          20
+          n
+        expected-output: ^[\s\S]+2024[\s\S]+2034
+        comparison-method: regex
+        timeout: 10
+        max-score: 3
+    - name: dim4
+      id: dim4
+      uses: classroom-resources/autograding-io-grader@v1
+      with:
+        test-name: dim4
+        setup-command: 
+        command: "./proj4"
+        input: |-
+          4
+          2 0 0 3
+          y
+          21 21 21 21
+          y
+          -21 -21 -21 -21
+          y
+          0 0 2 1
+          n
+        expected-output: ^[\s\S]+2\s0\s0\s3[\s\S]+2\s0\s2\s4
+        comparison-method: regex
+        timeout: 10
+        max-score: 4
+    - name: Create Summary
+      id: summary
+      run: |
+        echo "## Autograding Results" >> $GITHUB_STEP_SUMMARY
+        echo "| Test | Status | Score |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        
+        # Function to process test results
+        process_result() {
+          local test_name="$1"
+          local result="$2"
+          local icon="❌"
+          local status="FAILED"
+          
+          if [[ "$result" == *"✓"* ]] || [[ "$result" == "success" ]]; then
+            icon="✅"
+            status="PASSED"
+          fi
+          
+          echo "| $test_name | $icon $status | $(echo "$result" | grep -o '[0-9]\+/[0-9]\+' || echo '0/1') |" >> $GITHUB_STEP_SUMMARY
+        }
+        
+        # Process each test
+        process_result "compile via make" "${{ steps.compile-make.outputs.result }}"
+        process_result "compile proj4 via make" "${{ steps.compile-make-proj4.outputs.result }}"
+        process_result "constructors" "${{ steps.constructors.outputs.result }}"
+        process_result "destructor" "${{ steps.destructor.outputs.result }}"
+        process_result "getSize" "${{ steps.getsize.outputs.result }}"
+        process_result "setItem" "${{ steps.setitem.outputs.result }}"
+        process_result "getItem" "${{ steps.getitem.outputs.result }}"
+        process_result "setSize" "${{ steps.setsize.outputs.result }}"
+        process_result "equality" "${{ steps.equality.outputs.result }}"
+        process_result "writeToStream" "${{ steps.writetostream.outputs.result }}"
+        process_result "readFrom" "${{ steps.readfrom.outputs.result }}"
+        process_result "subscript" "${{ steps.subscript.outputs.result }}"
+        process_result "addition" "${{ steps.addition.outputs.result }}"
+        process_result "subtraction" "${{ steps.subtraction.outputs.result }}"
+        process_result "dim0" "${{ steps.dim0.outputs.result }}"
+        process_result "dim1" "${{ steps.dim1.outputs.result }}"
+        process_result "dim4" "${{ steps.dim4.outputs.result }}"
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "╔════════════════════════════════════════╗" >> $GITHUB_STEP_SUMMARY
+        echo "║            Test Results                ║" >> $GITHUB_STEP_SUMMARY
+        echo "╠════════════════════════════════════════╣" >> $GITHUB_STEP_SUMMARY
+        
+        # ASCII results for all tests
+        tests=("compile-make" "compile-make-proj4" "constructors" "destructor" "getsize" "setitem" "getitem" "setsize" "equality" "writetostream" "readfrom" "subscript" "addition" "subtraction" "dim0" "dim1" "dim4")
+        test_names=("compile via make" "compile proj4 via make" "constructors" "destructor" "getSize" "setItem" "getItem" "setSize" "equality" "writeToStream" "readFrom" "subscript" "addition" "subtraction" "dim0" "dim1" "dim4")
+        
+        for i in "${!tests[@]}"; do
+          test_id="${tests[$i]}"
+          test_name="${test_names[$i]}"
+          
+          # Get the result using case statement for each test
+          case "$test_id" in
+            "compile-make") result="${{ steps.compile-make.outputs.result }}" ;;
+            "compile-make-proj4") result="${{ steps.compile-make-proj4.outputs.result }}" ;;
+            "constructors") result="${{ steps.constructors.outputs.result }}" ;;
+            "destructor") result="${{ steps.destructor.outputs.result }}" ;;
+            "getsize") result="${{ steps.getsize.outputs.result }}" ;;
+            "setitem") result="${{ steps.setitem.outputs.result }}" ;;
+            "getitem") result="${{ steps.getitem.outputs.result }}" ;;
+            "setsize") result="${{ steps.setsize.outputs.result }}" ;;
+            "equality") result="${{ steps.equality.outputs.result }}" ;;
+            "writetostream") result="${{ steps.writetostream.outputs.result }}" ;;
+            "readfrom") result="${{ steps.readfrom.outputs.result }}" ;;
+            "subscript") result="${{ steps.subscript.outputs.result }}" ;;
+            "addition") result="${{ steps.addition.outputs.result }}" ;;
+            "subtraction") result="${{ steps.subtraction.outputs.result }}" ;;
+            "dim0") result="${{ steps.dim0.outputs.result }}" ;;
+            "dim1") result="${{ steps.dim1.outputs.result }}" ;;
+            "dim4") result="${{ steps.dim4.outputs.result }}" ;;
+          esac
+          
+          if [[ "$result" == *"✓"* ]] || [[ "$result" == "success" ]]; then
+            printf "║ %-30s [PASS] ║\n" "$test_name" >> $GITHUB_STEP_SUMMARY
+          else
+            printf "║ %-30s [FAIL] ║\n" "$test_name" >> $GITHUB_STEP_SUMMARY
+          fi
+        done
+        
+        echo "╚════════════════════════════════════════╝" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
