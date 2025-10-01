@@ -1,6 +1,6 @@
 # Project 04: More Vec Operations
 
-* Student name:
+**Student name:**
 
 ## Objectives
 
