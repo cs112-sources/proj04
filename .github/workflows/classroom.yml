@@ -194,6 +194,7 @@ jobs:
         max-score: 4
     - name: Create Summary
       id: summary
+      shell: bash
       run: |
         echo "## Autograding Results" >> $GITHUB_STEP_SUMMARY
         echo "| Test | Status | Score |" >> $GITHUB_STEP_SUMMARY
