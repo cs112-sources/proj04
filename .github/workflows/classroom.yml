@@ -79,7 +79,6 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: setSize
-        setup-command: 
         command: "./tester setSize"
         timeout: 10
         max-score: 1
@@ -88,7 +87,6 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: equality
-        setup-command: 
         command: "./tester equality"
         timeout: 10
         max-score: 1
@@ -97,7 +95,6 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: writeToStream
-        setup-command: 
         command: "./tester writeToStream"
         timeout: 10
         max-score: 1
@@ -106,7 +103,6 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: readFrom
-        setup-command: 
         command: "./tester readFromStream"
         timeout: 10
         max-score: 0
@@ -115,7 +111,6 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: subscript
-        setup-command: 
         command: "./tester subscript"
         timeout: 10
         max-score: 3
@@ -124,7 +119,6 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: addition
-        setup-command: 
         command: "./tester addition"
         timeout: 10
         max-score: 3
@@ -133,7 +127,6 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: subtraction
-        setup-command: 
         command: "./tester subtraction"
         timeout: 10
         max-score: 3
@@ -142,7 +135,6 @@ jobs:
       uses: classroom-resources/autograding-io-grader@v1
       with:
         test-name: dim0
-        setup-command: 
         command: "./proj4"
         input: |-
           0
@@ -157,17 +149,16 @@ jobs:
       uses: classroom-resources/autograding-io-grader@v1
       with:
         test-name: dim1
-        setup-command: 
         command: "./proj4"
         input: |-
           1
-          2024
+          2025
           y
           -10
           y
           20
           n
-        expected-output: ^[\s\S]+2024[\s\S]+2034
+        expected-output: ^[\s\S]+2025[\s\S]+2035
         comparison-method: regex
         timeout: 10
         max-score: 3
@@ -176,7 +167,6 @@ jobs:
       uses: classroom-resources/autograding-io-grader@v1
       with:
         test-name: dim4
-        setup-command: 
         command: "./proj4"
         input: |-
           4
@@ -186,9 +176,9 @@ jobs:
           y
           -21 -21 -21 -21
           y
-          0 0 2 1
+          0 0 2 2
           n
-        expected-output: ^[\s\S]+2\s0\s0\s3[\s\S]+2\s0\s2\s4
+        expected-output: ^[\s\S]+2.000000\s0.000000\s0.000000\s3.000000[\s\S]+2.000000\s0.000000\s2.000000\s5.000000
         comparison-method: regex
         timeout: 10
         max-score: 4
@@ -206,13 +196,19 @@ jobs:
           local result="$2"
           local icon="❌"
           local status="FAILED"
-          
-          if [[ "$result" == *"✓"* ]] || [[ "$result" == "success" ]]; then
+          local decoded
+          decoded=$(echo "$result" | base64 --decode 2>/dev/null)
+          if echo "$decoded" | grep -q "All tests passed"; then
+            icon="✅"
+            status="PASSED"
+          elif echo "$decoded" | grep -q "pass"; then
             icon="✅"
             status="PASSED"
           fi
-          
-          echo "| $test_name | $icon $status | $(echo "$result" | grep -o '[0-9]\+/[0-9]\+' || echo '0/1') |" >> $GITHUB_STEP_SUMMARY
+          score=$(echo "$decoded" | grep -o '"score":[0-9]*' | grep -o '[0-9]*' | head -1)
+          max_score=$(echo "$decoded" | grep -o '"max_score":[0-9]*' | grep -o '[0-9]*' | head -1)
+          score_display="${score:-0}/${max_score:-1}"
+          echo "| $test_name | $icon $status | $score_display |" >> $GITHUB_STEP_SUMMARY
         }
         
         # Process each test
@@ -249,7 +245,6 @@ jobs:
         for i in "${!tests[@]}"; do
           test_id="${tests[$i]}"
           test_name="${test_names[$i]}"
-          
           # Get the result using case statement for each test
           case "$test_id" in
             "compile-make") result="${{ steps.compile-make.outputs.result }}" ;;
@@ -270,11 +265,16 @@ jobs:
             "dim1") result="${{ steps.dim1.outputs.result }}" ;;
             "dim4") result="${{ steps.dim4.outputs.result }}" ;;
           esac
-          
-          if [[ "$result" == *"✓"* ]] || [[ "$result" == "success" ]]; then
-            printf "║ %-30s [PASS] ║\n" "$test_name" >> $GITHUB_STEP_SUMMARY
+          decoded=$(echo "$result" | base64 --decode 2>/dev/null)
+          score=$(echo "$decoded" | grep -o '"score":[0-9]*' | grep -o '[0-9]*' | head -1)
+          max_score=$(echo "$decoded" | grep -o '"max_score":[0-9]*' | grep -o '[0-9]*' | head -1)
+          score_display="${score:-0}/${max_score:-1}"
+          if echo "$decoded" | grep -q "All tests passed"; then
+            printf "║ %-30s [PASS] %s ║\n" "$test_name" "$score_display" >> $GITHUB_STEP_SUMMARY
+          elif echo "$decoded" | grep -q "pass"; then
+            printf "║ %-30s [PASS] %s ║\n" "$test_name" "$score_display" >> $GITHUB_STEP_SUMMARY
           else
-            printf "║ %-30s [FAIL] ║\n" "$test_name" >> $GITHUB_STEP_SUMMARY
+            printf "║ %-30s [FAIL] %s ║\n" "$test_name" "$score_display" >> $GITHUB_STEP_SUMMARY
           fi
         done
         
